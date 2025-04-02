@@ -1,0 +1,55 @@
+<script>
+ async function sendMessage() {
+    let input = document.getElementById("chat-input");
+    let fileInput = document.getElementById("file-input");
+    let user = localStorage.getItem("loggedInUser");
+
+    if (!user) {
+        alert("Bạn chưa đăng nhập!");
+        return;
+    }
+
+    let formData = new FormData();
+    formData.append("user", user);
+
+    if (fileInput.files.length > 0) {
+        let file = fileInput.files[0];
+        let imageUrl = URL.createObjectURL(file); // Tạo URL tạm thời
+        formData.append("image", imageUrl);
+
+        try {
+            let response = await fetch("http://localhost:3000/messages", {
+                method: "POST",
+                body: formData
+            });
+
+            let result = await response.json();
+            if (result.success) {
+                fileInput.value = ""; 
+                fetchMessages();
+            } else {
+                alert("Lỗi khi gửi ảnh!");
+            }
+        } catch (error) {
+            console.error("Lỗi khi gửi ảnh:", error);
+        }
+        return;
+    }
+
+    let message = input.value.trim();
+    if (message) {
+        try {
+            await fetch("http://localhost:3000/messages", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ user, message }),
+            });
+            input.value = "";
+            fetchMessages();
+        } catch (error) {
+            console.error("Lỗi khi gửi tin nhắn:", error);
+        }
+    }
+}
+    </script>
+    
