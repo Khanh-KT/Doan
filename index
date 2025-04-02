@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phòng Chat</title>
+    <link rel="stylesheet" href="style.css">
+    
+      
+</head>
+
+<body>
+    <div id="login-container" class="container">
+        <h2>Đăng Nhập</h2>
+        <input type="text" id="login-username" placeholder="Tên người dùng">
+        <input type="password" id="login-password" placeholder="Mật khẩu">
+        <button onclick="login()">Đăng Nhập</button>
+        <p>Chưa có tài khoản? <a href="#" onclick="showRegister()">Đăng ký</a></p>
+    </div>
+
+    <div id="register-container" class="container hidden">
+        <h2>Đăng Ký</h2>
+        <input type="text" id="register-username" placeholder="Tên người dùng">
+        <input type="password" id="register-password" placeholder="Mật khẩu">
+        <button onclick="register()">Đăng Ký</button>
+        <p>Đã có tài khoản? <a href="#" onclick="showLogin()">Đăng nhập</a></p>
+    </div>
+
+    <div id="chat-container" class="container hidden">
+        <h2>Phòng Chat</h2>
+        <div id="chat-box"></div>
+        <input type="text" id="chat-input" placeholder="Nhập tin nhắn...">
+      <!---  <input type="file" id="file-input" accept="image/*">-->
+
+
+        <button onclick="sendMessage(); return false;">Gửi</button>
+
+        <button onclick="logout()">Đăng Xuất</button>
+    </div>
+
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            let user = localStorage.getItem("loggedInUser");
+
+            if (user) {
+                console.log("Người dùng đang đăng nhập:", user);
+                showChat();
+                fetchMessages();  // Lấy tin nhắn ngay khi load trang
+                setInterval(fetchMessages, 2000); // Cập nhật tin nhắn liên tục
+            } else {
+                console.log("Chưa có ai đăng nhập!");
+                showLogin();  // Quay về màn hình đăng nhập
+            }
+        });
+        async function fetchMessages() {
+    try {
+        let response = await fetch("http://localhost:3000/messages");
+        if (!response.ok) throw new Error("Lỗi kết nối đến server!");
+
+        let messages = await response.json();
+        let chatBox = document.getElementById("chat-box");
+
+        chatBox.innerHTML = messages.map(msg => {
+            if (msg.image) {
+                return `<p><b>${msg.user}:</b> <br><img src="${msg.image}" width="200" style="border-radius: 8px;"></p>`;
+            } else {
+                return `<p><b>${msg.user}:</b> ${msg.message}</p>`;
+            }
+        }).join("");
+    } catch (error) {
+        console.error("Lỗi lấy tin nhắn:", error);
+    }
+}
+
+
+
+        function showChat() {
+            let user = localStorage.getItem("loggedInUser");
+            if (user) { // Chỉ hiển thị nếu người dùng còn đăng nhập
+                document.getElementById("login-container").classList.add("hidden");
+                document.getElementById("chat-container").classList.remove("hidden");
+            }
+        }
+
+        function showRegister() {
+            document.getElementById("login-container").classList.add("hidden");
+            document.getElementById("register-container").classList.remove("hidden");
+        }
+
+        function showLogin() {
+            document.getElementById("register-container").classList.add("hidden");
+            document.getElementById("login-container").classList.remove("hidden");
+        }
+
+        async function register() {
+            let username = document.getElementById("register-username").value;
+            let password = document.getElementById("register-password").value;
+            if (username && password) {
+                let user = { username, password };
+                await fetch("http://localhost:3000/users", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(user),
+                });
+                alert("Đăng ký thành công!");
+                showLogin();
+            } else {
+                alert("Vui lòng nhập đầy đủ thông tin!");
+            }
+        }
+
+        async function login() {
+            let username = document.getElementById("login-username").value;
+            let password = document.getElementById("login-password").value;
+            let response = await fetch("http://localhost:3000/users");
+            let users = await response.json();
+            let user = users.find(u => u.username === username && u.password === password);
+
+            if (user) {
+                localStorage.setItem("loggedInUser", username);
+                showChat();
+                fetchMessages();
+            } else {
+                alert("Sai tên người dùng hoặc mật khẩu!");
+            }
+        }
+
+
+
+        async function sendMessage() {
+            let input = document.getElementById("chat-input");
+            let message = input.value.trim();
+            let user = localStorage.getItem("loggedInUser");
+
+            if (!user || !message) {
+                console.error("Người dùng chưa đăng nhập hoặc tin nhắn rỗng!");
+                alert("Bạn chưa đăng nhập hoặc chưa nhập tin nhắn!");
+                return;
+            }
+
+            try {
+                let response = await fetch("http://localhost:3000/messages", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ user, message }),
+                });
+
+                let data = await response.json();
+                if (data.success) {
+                    input.value = "";
+                    fetchMessages();
+                } else {
+                    console.error("Lỗi từ server:", data.error);
+                }
+            } catch (error) {
+                console.error("Lỗi khi gửi tin nhắn:", error);
+            }
+        }
+
+
+        function logout() {
+            localStorage.removeItem("loggedInUser");
+            document.getElementById("chat-container").classList.add("hidden");
+            document.getElementById("login-container").classList.remove("hidden");
+        }
+    </script>
+</body>
+
+</html> 
