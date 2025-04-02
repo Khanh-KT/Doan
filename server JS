@@ -1,1 +1,59 @@
 
+const express = require("express");
+const cors = require("cors");
+const multer = require("multer");
+const fs = require("fs");
+
+const app = express();
+app.use(express.json());
+app.use(cors());
+
+// Cấu hình multer để lưu file vào thư mục uploads/
+const storage = multer.diskStorage({
+    destination: "uploads/",
+    filename: (req, file, cb) => {
+        cb(null, Date.now() + "-" + file.originalname);
+    },
+});
+const upload = multer({ storage });
+
+// Đọc dữ liệu từ db.json
+const dbFile = "db.json";
+let db = JSON.parse(fs.readFileSync(dbFile, "utf8"));
+
+// API gửi tin nhắn văn bản
+app.post("/send", (req, res) => {
+    const { user, message } = req.body;
+    if (user && message) {
+        let newMessage = { id: db.messages.length + 1, user, message, image: null };
+        db.messages.push(newMessage);
+        fs.writeFileSync(dbFile, JSON.stringify(db, null, 2));
+        res.status(200).json({ success: true });
+    } else {
+        res.status(400).json({ success: false, error: "Thiếu thông tin" });
+    }
+});
+
+// API gửi ảnh
+app.post("/upload", upload.single("image"), (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ success: false, error: "Không có file nào được tải lên!" });
+    }
+
+    const user = req.body.user;
+    const imagePath = `uploads/${req.file.filename}`;
+
+    let newMessage = { id: db.messages.length + 1, user, message: null, image: imagePath };
+    db.messages.push(newMessage);
+    fs.writeFileSync(dbFile, JSON.stringify(db, null, 2));
+
+    res.status(200).json({ success: true, image: imagePath });
+});
+
+// API lấy tin nhắn
+app.get("/messages", (req, res) => {
+    res.json(db.messages);
+});
+
+// Mở server
+app.listen(3000, () => console.log("Server đang chạy trên cổng 3000"));
